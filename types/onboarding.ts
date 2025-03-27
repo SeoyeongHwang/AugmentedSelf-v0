@@ -1,4 +1,4 @@
-export type OnboardingStep = "social" | "personal" | "context" | "results"
+export type OnboardingStep = "social" | "personality" | "values" | "context" | "results"
 
 export type SocialIdentity = {
   age: string

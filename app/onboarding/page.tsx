@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import SocialIdentityForm from "./social-identity-form"
-import PersonalIdentityForm from "./personal-identity-form"
+import PersonalityAssessmentForm from "./personality-assessment-form"
+import ValuesAssessmentForm from "./values-assessment-form"
 import PersonalContextForm from "./personal-context-form"
 import ResultsScreen from "./results-screen"
 import { motion } from "framer-motion"
@@ -19,11 +20,13 @@ export default function OnboardingPage() {
   const getProgress = () => {
     switch (currentStep) {
       case "social":
-        return 25
-      case "personal":
-        return 50
+        return 20
+      case "personality":
+        return 40
+      case "values":
+        return 60
       case "context":
-        return 75
+        return 80
       case "results":
         return 100
       default:
@@ -44,12 +47,13 @@ export default function OnboardingPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-4xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Augmented Self Onboarding</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Tell Us About Yourself</CardTitle>
           <CardDescription className="text-center">
-            {currentStep === "social" && "Tell us about your social identity"}
-            {currentStep === "personal" && "Let's understand your personality and values"}
+            {currentStep === "social" && "Let's understand your social identity"}
+            {currentStep === "personality" && "Let's understand your personality traits"}
+            {currentStep === "values" && "Let's understand your personal values"}
             {currentStep === "context" && "Share your personal life context"}
-            {currentStep === "results" && "Your self-aspect cards"}
+            {currentStep === "results" && "Your discovered self-aspect"}
           </CardDescription>
           <Progress value={getProgress()} className="w-full mt-2" />
         </CardHeader>
@@ -69,7 +73,8 @@ export default function OnboardingPage() {
               transition={{ duration: 0.3 }}
             >
               {currentStep === "social" && <SocialIdentityForm />}
-              {currentStep === "personal" && <PersonalIdentityForm />}
+              {currentStep === "personality" && <PersonalityAssessmentForm />}
+              {currentStep === "values" && <ValuesAssessmentForm />}
               {currentStep === "context" && <PersonalContextForm />}
               {currentStep === "results" && <ResultsScreen />}
             </motion.div>

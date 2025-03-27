@@ -210,8 +210,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }
 
   const nextStep = () => {
-    if (currentStep === "social") setCurrentStep("personal")
-    else if (currentStep === "personal") setCurrentStep("context")
+    if (currentStep === "social") setCurrentStep("personality")
+    else if (currentStep === "personality") setCurrentStep("values")
+    else if (currentStep === "values") setCurrentStep("context")
     else if (currentStep === "context") {
       generateSelfAspectCards()
       setCurrentStep("results")
@@ -220,8 +221,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const prevStep = () => {
     if (currentStep === "results") setCurrentStep("context")
-    else if (currentStep === "context") setCurrentStep("personal")
-    else if (currentStep === "personal") setCurrentStep("social")
+    else if (currentStep === "context") setCurrentStep("values")
+    else if (currentStep === "values") setCurrentStep("personality")
+    else if (currentStep === "personality") setCurrentStep("social")
   }
 
   const generateSelfAspectCards = async () => {

@@ -328,7 +328,7 @@ export default function DashboardPage() {
       const cardsToInsert = data.cards.map((card: SelfAspectCard, index: number) => ({
         ...card,
         id: crypto.randomUUID(),
-        user_id: user.id,
+        user_id: user?.id || '',
         status: "new",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
