@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type { SelfAspectCard } from "@/types/onboarding"
 import OpenAI from "openai"
-import { SYSTEM_PROMPT, constructSelfAspectPrompt } from '@/lib/prompts/self-aspects'
+import { SYSTEM_PROMPT, constructSelfAspectPrompt } from '@/src/lib/prompts/self-aspects'
 
 export const runtime = "nodejs"
 

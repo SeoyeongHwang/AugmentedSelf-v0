@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type { OnboardingData, SelfAspectCard, PersonalityItem, ValueItem } from "@/types/onboarding"
 import OpenAI from "openai"
-import { SYSTEM_PROMPT, constructSelfAspectPrompt } from '@/lib/prompts/self-aspects'
+import { SYSTEM_PROMPT, constructSelfAspectPrompt } from '@/src/lib/prompts/self-aspects'
 
 // Mark this file as a server component
 export const runtime = "nodejs" // This ensures it runs on the server
