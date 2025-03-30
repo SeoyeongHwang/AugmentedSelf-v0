@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type { SelfAspectCard } from "@/types/onboarding"
 import OpenAI from "openai"
+import { SYSTEM_PROMPT, constructSelfAspectPrompt } from '@/lib/prompts/self-aspects'
 
 export const runtime = "nodejs"
 
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     })
 
     // Construct the prompt
-    const prompt = constructPrompt(userData, content)
+    const prompt = constructSelfAspectPrompt(userData, 'journal', content)
     console.log("Constructed prompt length:", prompt.length)
 
     console.log("Calling OpenAI API via AI SDK...")
@@ -58,31 +59,11 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: `You are an expert psychologist specializing in self-concept analysis using the Augmented Self framework.
-Your task is to analyze the user's social identity (S), personality traits (P), and journal entry content (C) to identify new self-aspects.
-Return the analysis in a specific JSON format with cards containing title, description, and traits.
-
-The response must be in this exact JSON format:
-{
-  "cards": [
-    {
-      "title": "A clear, concise title without any markdown or special characters",
-      "description": "A detailed description in natural language (about 2-3 sentences)",
-      "traits": ["Trait1", "Trait2", "Trait3"]
-    }
-  ]
-}
-
-Important:
-1. Do not use any markdown formatting in the titles or descriptions
-2. Keep titles concise and clear
-3. Make descriptions natural and flowing
-4. Include exactly 2-3 traits per card
-5. Return ONLY the JSON object, no additional text`
+          content: SYSTEM_PROMPT,
         },
         {
           role: "user",
-          content: prompt
+          content: prompt,
         }
       ],
       temperature: 0.7,
@@ -153,67 +134,6 @@ function parseResponse(responseText: string) {
       ]
     }
   }
-}
-
-// Helper function to construct the prompt
-function constructPrompt(data: any, content: string): string {
-  // Handle both onboarding and new entry data structures
-  const socialData = data.social || data.social_data || {};
-  const personalData = data.personal || data.personal_data || {};
-
-  // Get relevant social identity fields
-  const relevantSocialData = {
-    age: socialData.age || 30,
-    occupation: socialData.occupation || 'Not specified',
-    education: socialData.education || 'Not specified',
-    location: socialData.location || 'Not specified',
-    culturalBackground: socialData.culturalBackground || 'Not specified'
-  };
-
-  // Get personality and value descriptions
-  const personalityDescriptions = generatePersonalityDescriptions(data);
-  const valueDescriptions = generateValueDescriptions(data);
-
-  return `
-    Based on the following information about a person, generate self-aspect cards that capture their multidimensional self-concept.
-    
-    Social Identity (S):
-    - Age: ${relevantSocialData.age}
-    - Occupation: ${relevantSocialData.occupation}
-    - Education: ${relevantSocialData.education}
-    - Location: ${relevantSocialData.location}
-    - Cultural Background: ${relevantSocialData.culturalBackground}
-
-    Personality Traits (P):
-    ${personalityDescriptions}
-
-    Values:
-    ${valueDescriptions}
-
-    Journal Entry Content (C):
-    ${content}
-
-    Generate self-aspect cards that reflect new insights or developments in the user's self-concept based on their journal entry.
-    Each self-aspect should be a unique combination of their social identity, personality traits, and the content of their journal entry.
-    
-    Return the analysis in the following JSON format:
-    {
-      "cards": [
-        {
-          "title": "A clear, concise title without any markdown or special characters",
-          "description": "A detailed description in natural language (about 2-3 sentences)",
-          "traits": ["Trait1", "Trait2", "Trait3"]
-        }
-      ]
-    }
-    
-    Important:
-    1. Do not use any markdown formatting in the titles or descriptions
-    2. Keep titles concise and clear
-    3. Make descriptions natural and flowing
-    4. Include exactly 2-3 traits per card
-    5. Return ONLY the JSON object, no additional text
-  `;
 }
 
 // Helper function to generate personality descriptions

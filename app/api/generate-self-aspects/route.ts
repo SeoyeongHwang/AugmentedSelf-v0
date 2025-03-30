@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type { OnboardingData, SelfAspectCard, PersonalityItem, ValueItem } from "@/types/onboarding"
 import OpenAI from "openai"
+import { SYSTEM_PROMPT, constructSelfAspectPrompt } from '@/lib/prompts/self-aspects'
 
 // Mark this file as a server component
 export const runtime = "nodejs" // This ensures it runs on the server
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     const valueDescriptions = generateValueDescriptions(data.personal.valueItems)
 
     // Construct the prompt for GPT
-    const prompt = constructGPTPrompt(data, personalityDescriptions, valueDescriptions)
+    const prompt = constructSelfAspectPrompt(data, 'onboarding')
     console.log("Constructed prompt length:", prompt.length)
 
     try {
@@ -42,12 +43,11 @@ export async function POST(request: NextRequest) {
       // Call the OpenAI API with a timeout
       console.log("Calling OpenAI API...")
       const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo", // Using a less expensive model for testing
+        model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content:
-              "You are an expert psychologist specializing in self-concept analysis using the Augmented Self framework.",
+            content: SYSTEM_PROMPT,
           },
           {
             role: "user",
@@ -226,88 +226,6 @@ function generateValueDescriptions(items: ValueItem[]) {
       conformity: getEverydayValueDescription("conformity", valueMap.get("conformity") || 4),
     },
   }
-}
-
-// This is where you can modify the prompt
-function constructGPTPrompt(data: OnboardingData, personalityDescriptions: any, valueDescriptions: any) {
-  return `
-    Based on the following information about a person, generate exactly 3 self-aspect cards that capture their multidimensional self-concept.
-    
-    Social Identity (S):
-    - Age: ${data.social.age || "Not specified"}
-    - Biological Sex: ${data.social.biologicalSex || "Not specified"}
-    - Gender Identity: ${data.social.genderIdentity || "Not specified"}
-    - Sexual Orientation: ${data.social.sexualOrientation || "Not specified"}
-    - Ethnicity: ${data.social.ethnicity || "Not specified"}
-    - Race: ${data.social.race || "Not specified"}
-    - Disabilities: ${data.social.disabilities.has ? data.social.disabilities.details : "None"}
-    - Nationality: ${data.social.nationality || "Not specified"}
-    - Dual Nationality: ${data.social.dualNationality.has ? data.social.dualNationality.details : "None"}
-    - Residence: ${data.social.residence || "Not specified"}
-    - Education: ${data.social.education || "Not specified"}
-    - Occupation: ${data.social.occupation || "Not specified"}
-    - Field of Study: ${data.social.fieldOfStudy || "Not specified"}
-    - Job Title: ${data.social.jobTitle || "Not specified"}
-    - Perceived Income: ${data.social.perceivedIncome || "Not specified"}
-    - Subjective Income: ${data.social.subjectiveIncome || "Not specified"}
-    - Income Satisfaction: ${data.social.incomeSatisfaction || "Not specified"}
-    - Social Class: ${data.social.socialClass || "Not specified"}
-    - Living Arrangement: ${data.social.livingArrangement || "Not specified"}
-    - Political Affiliation: ${data.social.politicalAffiliation || "Not specified"}
-    - Religious Affiliation: ${data.social.religiousAffiliation || "Not specified"}
-    
-    Personal Identity (P):
-    
-    Expert Personality Description:
-    - Extraversion: ${personalityDescriptions.expert.extraversion}
-    - Conscientiousness: ${personalityDescriptions.expert.conscientiousness}
-    - Neuroticism: ${personalityDescriptions.expert.neuroticism}
-    - Openness: ${personalityDescriptions.expert.openness}
-    
-    Everyday Personality Description:
-    - Extraversion: ${personalityDescriptions.everyday.extraversion}
-    - Conscientiousness: ${personalityDescriptions.everyday.conscientiousness}
-    - Neuroticism: ${personalityDescriptions.everyday.neuroticism}
-    - Openness: ${personalityDescriptions.everyday.openness}
-    
-    Expert Values Description:
-    - Autonomy: ${valueDescriptions.expert.autonomy}
-    - Benevolence: ${valueDescriptions.expert.benevolence}
-    - Achievement: ${valueDescriptions.expert.achievement}
-    - Security: ${valueDescriptions.expert.security}
-    - Conformity: ${valueDescriptions.expert.conformity}
-    
-    Everyday Values Description:
-    - Autonomy: ${valueDescriptions.everyday.autonomy}
-    - Benevolence: ${valueDescriptions.everyday.benevolence}
-    - Achievement: ${valueDescriptions.everyday.achievement}
-    - Security: ${valueDescriptions.everyday.security}
-    - Conformity: ${valueDescriptions.everyday.conformity}
-    
-    Personal Context (C):
-    ${data.context.diary || "No personal context provided"}
-    
-    For each self-aspect, provide:
-    1. A title that captures the essence of the self-aspect (e.g., "Creative Problem-Solver")
-    2. A detailed description of the self-aspect in natural language (about 2-3 sentences)
-    3. A list of 2-3 key traits associated with this self-aspect
-    
-    Format each self-aspect as follows:
-    
-    1. [Title]
-    [Description]
-    Key Traits: [Trait1], [Trait2], [Trait3]
-    
-    2. [Title]
-    [Description]
-    Key Traits: [Trait1], [Trait2], [Trait3]
-    
-    3. [Title]
-    [Description]
-    Key Traits: [Trait1], [Trait2], [Trait3]
-    
-    Do not directly quote the user's responses. Synthesize the information to identify meaningful self-aspects.
-  `
 }
 
 // Expert descriptions for personality traits
