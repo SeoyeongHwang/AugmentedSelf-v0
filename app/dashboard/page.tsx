@@ -176,7 +176,6 @@ export default function DashboardPage() {
         ? newEntry.substring(0, 3000) 
         : newEntry
 
-      // userData에는 이미 social, personal 정보가 모두 들어있음
       console.log("Submitting entry with onboarding data:", userData)
 
       const response = await fetch("/api/analyze-content", {
@@ -187,24 +186,23 @@ export default function DashboardPage() {
         body: JSON.stringify({
           content: truncatedContent,
           userData: {
-            social: userData.social,      // 온보딩에서 저장한 social
-            personal: userData.personal,  // 온보딩에서 저장한 personal
+            social: userData.social,
+            personal: userData.personal,
           }
         }),
       })
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
+        throw new Error(`API error: ${response.statusText}`)
       }
 
-      const data = await response.json();
-      console.log("Analysis response:", data);
+      const data = await response.json()
+      console.log("Analysis response:", data)
 
       if (!data.cards || !Array.isArray(data.cards)) {
-        throw new Error("Invalid response format from API");
+        throw new Error("Invalid response format from API")
       }
 
-      // 새로운 카드에 ID와 상태 추가
       const cardsWithIds = data.cards.map((card: any) => ({
         ...card,
         id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -212,27 +210,27 @@ export default function DashboardPage() {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         user_id: user.id
-      }));
+      }))
 
-      setNewCards(cardsWithIds);
-      setShowResults(true);
+      setNewCards(cardsWithIds)
+      setShowResults(true)
+      setNewEntry("")
       
-      // 분석 완료 후 Supabase에 카드 저장
       const { error: saveError } = await supabase
         .from('self_aspect_cards')
-        .insert(cardsWithIds);
+        .insert(cardsWithIds)
 
       if (saveError) {
-        console.error("Error saving cards to database:", saveError);
+        console.error("Error saving cards to database:", saveError)
       }
 
     } catch (error) {
-      console.error("Error analyzing entry:", error);
-      setError(error instanceof Error ? error.message : "Failed to analyze entry");
+      console.error("Error analyzing entry:", error)
+      setError(error instanceof Error ? error.message : "Failed to analyze entry")
     } finally {
-      setIsAnalyzing(false);
+      setIsAnalyzing(false)
     }
-  };
+  }
 
   const handleUpload = async () => {
     setIsAnalyzing(true)
