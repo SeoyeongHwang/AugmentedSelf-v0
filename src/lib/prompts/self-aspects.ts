@@ -61,7 +61,7 @@ export function constructSelfAspectPrompt(
   }
 
   return `
-    Based on the following information and new journal entry, generate exactly 3 self-aspect cards that reflect new insights or developments in the user's self-concept.
+    Based on the following information and new journal entry, generate 1-3 self-aspect cards that reflect new insights or developments in the user's self-concept.
     
     ${basePrompt}
     

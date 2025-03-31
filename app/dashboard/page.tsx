@@ -77,38 +77,8 @@ export default function DashboardPage() {
       try {
         setIsLoading(true)
         setError(null)
-        console.log('Loading user data for:', user.id)
-        console.log('User ID type:', typeof user.id)
-        console.log('Full user object:', user)
 
-        // Check Supabase connection first
-        const isConnected = await checkSupabaseConnection()
-        if (!isConnected) {
-          throw new Error('Unable to connect to the database. Please check your connection.')
-        }
-
-        // Fetch user's cards using UUID
-        const { data: cards, error: cardsError } = await supabase
-          .from('self_aspect_cards')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-
-        if (cardsError) {
-          console.error('Error fetching cards:', cardsError)
-          throw new Error(`Failed to fetch cards: ${cardsError.message || 'Unknown error'}`)
-        }
-
-        console.log('Fetched cards:', cards?.length || 0)
-
-        if (cards) {
-          const collected = cards.filter((card: SelfAspectCardDB) => card.status === "collected")
-          const rejected = cards.filter((card: SelfAspectCardDB) => card.status === "rejected")
-          setCollectedCards(collected)
-          setRejectedCards(rejected)
-        }
-
-        // Fetch user's onboarding data using UUID
+        // 온보딩 데이터 로드
         const { data: onboardingData, error: onboardingError } = await supabase
           .from('onboarding_data')
           .select('*')
@@ -116,13 +86,35 @@ export default function DashboardPage() {
           .single()
 
         if (onboardingError) {
-          throw new Error(`Failed to fetch onboarding data: ${onboardingError.message}`);
+          throw new Error(`Failed to fetch onboarding data: ${onboardingError.message}`)
         }
 
-        setUserData(onboardingData);
-      } catch (error: any) {
+        // userData 설정 시 구조 맞추기
+        setUserData({
+          social: onboardingData.social_data,      // social_data를 social로 매핑
+          personal: onboardingData.personal_data    // personal_data를 personal로 매핑
+        })
+
+        // 카드 로드
+        const { data: cards, error: cardsError } = await supabase
+          .from('self_aspect_cards')
+          .select('*')
+          .eq('user_id', user.id)
+
+        if (cardsError) {
+          throw new Error(`Failed to fetch cards: ${cardsError.message}`)
+        }
+
+        // 카드 상태별로 분류
+        const collected = cards?.filter(card => card.status === 'collected') || []
+        const rejected = cards?.filter(card => card.status === 'rejected') || []
+
+        setCollectedCards(collected)
+        setRejectedCards(rejected)
+
+      } catch (error) {
         console.error('Error loading user data:', error)
-        setError(error.message || 'Failed to load user data. Please check your connection and try again.')
+        setError(error instanceof Error ? error.message : 'Failed to load user data')
       } finally {
         setIsLoading(false)
       }
@@ -171,18 +163,22 @@ export default function DashboardPage() {
   }
 
   const handleSubmitEntry = async () => {
-    if (!user?.id || !userData) return;
+    if (!user?.id || !userData) {
+      console.error("Missing user data:", { userId: user?.id, userData })
+      return
+    }
 
     try {
-      setIsAnalyzing(true);
-      setShowResults(false);
+      setIsAnalyzing(true)
+      setShowResults(false)
       
-      // 3000자 제한 적용
       const truncatedContent = newEntry.length > 3000 
         ? newEntry.substring(0, 3000) 
-        : newEntry;
+        : newEntry
 
-      console.log("Submitting entry for analysis...");
+      // userData에는 이미 social, personal 정보가 모두 들어있음
+      console.log("Submitting entry with onboarding data:", userData)
+
       const response = await fetch("/api/analyze-content", {
         method: "POST",
         headers: {
@@ -190,9 +186,12 @@ export default function DashboardPage() {
         },
         body: JSON.stringify({
           content: truncatedContent,
-          userData: userData
+          userData: {
+            social: userData.social,      // 온보딩에서 저장한 social
+            personal: userData.personal,  // 온보딩에서 저장한 personal
+          }
         }),
-      });
+      })
 
       if (!response.ok) {
         throw new Error(`API error: ${response.statusText}`);

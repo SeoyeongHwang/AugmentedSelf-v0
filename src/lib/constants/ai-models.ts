@@ -2,8 +2,6 @@ export const AI_MODELS = {
   // Default models for different use cases
   DEFAULT: {
     SELF_ASPECTS: "gpt-4o-mini",
-    CONTENT_ANALYSIS: "gpt-4o-mini",
-    CHAT: "gpt-4o-mini",
   }
 } as const
 

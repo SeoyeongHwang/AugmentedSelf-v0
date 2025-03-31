@@ -54,8 +54,7 @@ export async function POST(request: NextRequest) {
     const prompt = constructSelfAspectPrompt(userData, 'journal', content)
     console.log("Constructed prompt length:", prompt.length)
 
-    // Get model configuration
-    const model = AI_MODELS.DEFAULT.CONTENT_ANALYSIS
+    const model = AI_MODELS.DEFAULT.SELF_ASPECTS
     const config = MODEL_CONFIGS[model]
 
     console.log("Using model:", model)
@@ -68,14 +67,13 @@ export async function POST(request: NextRequest) {
         },
         {
           role: "user",
-          content: prompt,
+          content: prompt
         }
       ],
       temperature: config.temperature,
       max_tokens: config.maxTokens
     })
 
-    console.log("OpenAI API response received")
     const aiResponse = response.choices[0].message.content || ""
     console.log("Raw AI response:", aiResponse)
 
