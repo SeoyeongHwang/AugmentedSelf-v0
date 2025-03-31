@@ -1,4 +1,7 @@
-// 프롬프트 관련 상수와 타입을 중앙화된 위치에서 관리
+import type { PersonalityItem, ValueItem } from './types'
+
+// 이 파일은 자기 측면 생성에 필요한 프롬프트 관련 상수와 헬퍼 함수를 정의합니다.
+// OpenAI API에 전달할 시스템 프롬프트와 사회적 정체성을 포맷하는 함수를 포함합니다.
 export const SYSTEM_PROMPT = `You are an introspective identity analyst for this person.
 Based on the provided diary entries, personal context, and values (S, P, C), derive key self-aspects that this person might use to understand or describe themselves.
 

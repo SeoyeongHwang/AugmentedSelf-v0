@@ -1,5 +1,7 @@
-"use client"
+// 이 파일은 온보딩 과정에서 사용되는 상태 관리 컨텍스트를 정의합니다.
+// 사용자 입력을 관리하고, 자기 측면 생성을 위한 API 호출을 처리합니다.
 
+"use client"
 import type React from "react"
 
 import { createContext, useContext, useState } from "react"

@@ -1,3 +1,6 @@
+// 이 파일은 대시보드 페이지를 정의합니다.
+// 사용자가 개인 항목을 작성하거나 문서를 업로드할 수 있는 UI를 제공합니다.
+
 "use client"
 
 import type React from "react"

@@ -1,3 +1,7 @@
+// 이 파일은 AI SDK를 사용하여 자기 측면을 생성하는 API 엔드포인트를 정의합니다.
+// 클라이언트로부터 요청을 받아 OpenAI API를 호출하고,
+// 생성된 자기 측면 카드를 JSON 형식으로 반환합니다.
+
 import { type NextRequest, NextResponse } from "next/server"
 import type { OnboardingData, SelfAspectCard } from "@/types/onboarding"
 import { generateText } from "ai"

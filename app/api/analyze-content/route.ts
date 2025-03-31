@@ -1,3 +1,6 @@
+// 이 파일은 콘텐츠 분석을 위한 API 엔드포인트를 정의합니다.
+// 클라이언트로부터 요청을 받아 OpenAI API를 호출하고,
+// 분석 결과를 JSON 형식으로 반환합니다.
 import { type NextRequest, NextResponse } from "next/server"
 import type { SelfAspectCard } from "@/types/onboarding"
 import OpenAI from "openai"
@@ -11,25 +14,29 @@ const openai = new OpenAI({
 })
 
 // Mock data for fallback
-const mockNewCards = {
+const mockNewCards: { cards: SelfAspectCard[] } = {
   cards: [
     {
+      id: `mock-${Date.now()}-1`,
       title: "Personal Growth Journey",
       description: "Reflecting on personal development and self-discovery through daily experiences.",
-      traits: ["Growth", "Self-awareness"]
+      traits: ["Growth", "Self-awareness"],
+      status: "new"
     },
     {
+      id: `mock-${Date.now()}-2`,
       title: "Emotional Expression",
       description: "Exploring and expressing emotions through writing and reflection.",
-      traits: ["Emotional intelligence", "Self-expression"]
+      traits: ["Emotional intelligence", "Self-expression"],
+      status: "new"
     }
   ]
 }
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
     console.log("Starting analyze-content API call")
-    const { content, userData } = await req.json()
+    const { content, userData } = await request.json()
     console.log("Received content length:", content?.length)
     console.log("User data:", JSON.stringify(userData, null, 2))
 

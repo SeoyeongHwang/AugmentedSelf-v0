@@ -1,3 +1,5 @@
+// 이 파일은 자기 측면 생성을 위한 모의 API 엔드포인트를 정의합니다.
+// 클라이언트로부터 요청을 받아 미리 정의된 모의 데이터를 반환합니다.
 import { type NextRequest, NextResponse } from "next/server"
 import type { SelfAspectCard } from "@/types/onboarding"
 
