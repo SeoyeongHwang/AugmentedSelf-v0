@@ -133,9 +133,9 @@ export function SelfAspectCardComponent({ card, onCollect, onReject }: SelfAspec
           </DialogDescription>
           <DialogFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>Created: {formatDate(card.created_at)}</p>
+              <p>Created: {formatDate(card.created_at || "")}</p>
               {card.status !== "new" && (
-                <p>Last modified: {formatDate(card.updated_at)}</p>
+                <p>Last modified: {formatDate(card.updated_at || "")}</p>
               )}
             </div>
             <div className="flex justify-end gap-2 shrink-0">

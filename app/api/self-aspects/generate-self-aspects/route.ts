@@ -79,6 +79,7 @@ function parseGPTResponse(responseText: string): SelfAspectCard[] {
 
     // Try to parse as JSON first (if you've instructed GPT to return JSON)
     try {
+      const now = new Date().toISOString()
       const jsonResponse = JSON.parse(responseText)
       if (Array.isArray(jsonResponse)) {
         return jsonResponse.map((card, index) => ({
@@ -87,6 +88,8 @@ function parseGPTResponse(responseText: string): SelfAspectCard[] {
           description: card.description || "",
           traits: card.traits || [],
           status: "new",
+          created_at: now,
+          updated_at: now,
         }))
       }
     } catch (e) {
@@ -96,6 +99,7 @@ function parseGPTResponse(responseText: string): SelfAspectCard[] {
     // Text parsing fallback
     // Split by numbered sections (1., 2., 3.)
     const sections = responseText.split(/\d+\.\s+/).filter(Boolean)
+    const now = new Date().toISOString()
 
     return sections.map((section, index) => {
       // Extract title (assuming it's the first line)
@@ -125,10 +129,13 @@ function parseGPTResponse(responseText: string): SelfAspectCard[] {
         description,
         traits,
         status: "new",
+        created_at: now,
+        updated_at: now
       }
     })
   } catch (error) {
     console.error("Error parsing GPT response:", error)
+    const now = new Date().toISOString()
     // Return a fallback card if parsing fails
     return [
       {
@@ -137,6 +144,8 @@ function parseGPTResponse(responseText: string): SelfAspectCard[] {
         description: "The system was unable to parse the response properly. Please try again.",
         traits: ["Error"],
         status: "new",
+        created_at: now,
+        updated_at: now,
       },
     ]
   }
@@ -379,11 +388,14 @@ function parseResponse(responseText: string) {
       throw new Error("Invalid response structure: missing or invalid cards array")
     }
 
-    // Add IDs and status to each card
+    // Add IDs, status, and timestamps to each card
+    const now = new Date().toISOString()
     const cards = parsed.cards.map((card: any, index: number) => ({
       ...card,
       id: `card-${Date.now()}-${index}`,
-      status: "new" as const
+      status: "new" as const,
+      created_at: now,
+      updated_at: now
     }))
 
     return { cards }

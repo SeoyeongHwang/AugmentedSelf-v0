@@ -3,7 +3,7 @@
 // 생성된 자기 측면 카드를 JSON 형식으로 반환합니다.
 import { type NextRequest, NextResponse } from "next/server"
 import { getOpenAIClient } from "@/src/lib/openai"
-import { SYSTEM_PROMPT, constructSelfAspectPrompt } from "@/src/lib/prompts"
+import { SYSTEM_PROMPT, constructSelfAspectPrompt } from "@/src/lib/prompts/self-aspects"
 import { mockCards } from "./mock"
 
 export const runtime = "nodejs"

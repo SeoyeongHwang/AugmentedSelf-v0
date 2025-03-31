@@ -14,7 +14,7 @@ import { motion } from "framer-motion"
 import { Loader2 } from "lucide-react"
 
 export default function OnboardingPage() {
-  const { currentStep, nextStep, prevStep, isGenerating } = useOnboarding()
+  const { currentStep, nextStep, prevStep, isGenerating, data, generateSelfAspectCards } = useOnboarding()
   const [isLoading, setIsLoading] = useState(false)
 
   const getProgress = () => {
@@ -36,16 +36,36 @@ export default function OnboardingPage() {
 
   const handleNextStep = async () => {
     if (currentStep === "context") {
-      setIsLoading(true)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setIsLoading(false)
+      try {
+        setIsLoading(true)
+        await generateSelfAspectCards()  // self-aspect 카드 생성
+        setIsLoading(false)  // 먼저 로딩 상태를 해제하고
+        setTimeout(() => {    // 약간의 지연 후 다음 단계로 이동
+          nextStep()
+        }, 100)
+      } catch (error) {
+        console.error("Error generating self-aspect cards:", error)
+        setIsLoading(false)
+      }
+    } else {
+      nextStep()
     }
-    nextStep()
+  }
+
+  const isNextDisabled = () => {
+    if (isLoading || isGenerating) return true
+    
+    // context 단계에서의 유효성 검사
+    if (currentStep === "context") {
+      return !data.context.contexts.every((context) => context.content.trim() !== '')
+    }
+    
+    return false
   }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-      <Card className="w-full max-w-4xl">
+      <Card className="w-full max-w-[1400px]">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Tell Us About Yourself</CardTitle>
           <CardDescription className="text-center">
@@ -57,7 +77,7 @@ export default function OnboardingPage() {
           </CardDescription>
           <Progress value={getProgress()} className="w-full mt-2" />
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -67,10 +87,10 @@ export default function OnboardingPage() {
           ) : (
             <motion.div
               key={currentStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
             >
               {currentStep === "social" && <SocialIdentityForm />}
               {currentStep === "personality" && <PersonalityAssessmentForm />}
@@ -85,7 +105,7 @@ export default function OnboardingPage() {
             Previous
           </Button>
           {currentStep !== "results" ? (
-            <Button onClick={handleNextStep} disabled={isLoading || isGenerating}>
+            <Button onClick={handleNextStep} disabled={isNextDisabled()}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

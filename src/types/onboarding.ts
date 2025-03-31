@@ -9,13 +9,29 @@ export interface SocialIdentity {
   biologicalSex?: string
   genderIdentity?: string
   sexualOrientation?: string
-  relationshipStatus?: string
+  ethnicity?: string
+  race?: string
+  nationality?: string
+  dualNationality: {
+    has: boolean
+    details: string
+  }
+  residence?: string
+  disabilities: {
+    has: boolean
+    details: string
+  }
+  education?: string
   occupation?: string
-  educationLevel?: string
-  culturalBackground?: string
-  religiousBeliefs?: string
-  primaryLanguage?: string
-  location?: string
+  fieldOfStudy?: string
+  jobTitle?: string
+  perceivedIncome?: string
+  subjectiveIncome?: string
+  incomeSatisfaction?: string
+  socialClass?: string
+  livingArrangement?: string
+  politicalAffiliation?: string
+  religiousAffiliation?: string
 }
 
 export interface PersonalIdentity {
@@ -52,15 +68,11 @@ export interface SelfAspectCard {
   title: string
   description: string
   traits: string[]
-  status?: 'new' | 'accepted' | 'rejected'
+  status?: 'new' | 'collected' | 'rejected'
   created_at?: string
   updated_at?: string
 }
 
 export type OnboardingStep = 'social' | 'personality' | 'values' | 'context' | 'results'
 
-export type PersonalContextUpdate = Partial<{
-  type: 'text' | 'file'
-  content: string
-  fileUrl: string | undefined
-}>
+export type PersonalContextUpdate = Partial<Omit<PersonalContext, 'id'>>

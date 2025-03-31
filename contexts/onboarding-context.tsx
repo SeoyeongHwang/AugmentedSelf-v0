@@ -15,7 +15,7 @@ import type {
   OnboardingData,
   PersonalContextUpdate,
   ContextData,
-} from "@/types/onboarding"
+} from "../src/types/onboarding"
 import { db } from "@/lib/firebase"
 import { doc, setDoc, getDoc } from "firebase/firestore"
 import { supabase } from "@/lib/supabase"
@@ -35,7 +35,7 @@ type OnboardingContextType = {
   prevStep: () => void
   generateSelfAspectCards: () => Promise<void>
   updateCardStatus: (id: string, status: "collected" | "rejected") => void
-  completeOnboarding: () => void
+  completeOnboarding: () => Promise<boolean>
 }
 
 const defaultSocialIdentity: SocialIdentity = {
@@ -43,13 +43,29 @@ const defaultSocialIdentity: SocialIdentity = {
   biologicalSex: "",
   genderIdentity: "",
   sexualOrientation: "",
-  relationshipStatus: "",
+  ethnicity: "",
+  race: "",
+  nationality: "",
+  dualNationality: {
+    has: false,
+    details: ""
+  },
+  residence: "",
+  disabilities: {
+    has: false,
+    details: ""
+  },
+  education: "",
   occupation: "",
-  educationLevel: "",
-  culturalBackground: "",
-  religiousBeliefs: "",
-  primaryLanguage: "",
-  location: "",
+  fieldOfStudy: "",
+  jobTitle: "",
+  perceivedIncome: "",
+  subjectiveIncome: "",
+  incomeSatisfaction: "",
+  socialClass: "",
+  livingArrangement: "",
+  politicalAffiliation: "",
+  religiousAffiliation: ""
 }
 
 const defaultPersonalityItems = [
@@ -145,11 +161,30 @@ const OnboardingContext = createContext<OnboardingContextType | undefined>(undef
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("social")
-  const [data, setData] = useState<OnboardingData>(defaultData)
+  const [data, setData] = useState<OnboardingData>(() => ({
+    social: {
+      ...defaultSocialIdentity,
+      disabilities: {  // 명시적으로 disabilities 객체 초기화
+        has: false,
+        details: ""
+      }
+    },
+    personal: {
+      personalityItems: defaultPersonalityItems,
+      valueItems: defaultValueItems,
+    },
+    context: {
+      contexts: [
+        { id: '1', type: 'text', content: '' },
+        { id: '2', type: 'text', content: '' },
+        { id: '3', type: 'text', content: '' }
+      ]
+    }
+  }))
   const [generatedCards, setGeneratedCards] = useState<SelfAspectCard[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, updateOnboardingStatus } = useAuth()
 
   const updateSocialIdentity = (socialData: Partial<SocialIdentity>) => {
     setData((prev) => ({
@@ -225,32 +260,30 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     try {
       console.log("Calling generate-self-aspects API...")
 
-      // Try the AI SDK route first
-      try {
-        const response = await fetch("/api/generate-self-aspects-ai-sdk", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        })
+      const response = await fetch("/api/self-aspects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ data }),
+      })
 
-        console.log("AI SDK API response status:", response.status)
+      console.log("API response status:", response.status)
 
-        if (response.ok) {
-          const result = await response.json()
-          const now = new Date().toISOString()
-          setGeneratedCards(
-            result.cards.map((card: any) => ({
-              ...card,
-              status: "new",
-              created_at: now,
-              updated_at: now
-            }))
-          )
-        }
-      } catch (error) {
-        console.error("Error with AI SDK route:", error)
+      if (response.ok) {
+        const result = await response.json()
+        const now = new Date().toISOString()
+        setGeneratedCards(
+          result.cards.map((card: any) => ({
+            ...card,
+            id: card.id,
+            status: "new",
+            created_at: now,
+            updated_at: now
+          }))
+        )
+      } else {
+        throw new Error(`API returned status: ${response.status}`)
       }
     } catch (error) {
       console.error("Error generating self aspect cards:", error)
@@ -260,8 +293,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }
 
   const updateCardStatus = async (id: string, status: "collected" | "rejected") => {
-    setGeneratedCards((prev) =>
-      prev.map((card) =>
+    console.log(`Updating card ${id} status to ${status}`)
+    setGeneratedCards((prev) => {
+      const updated = prev.map((card) =>
         card.id === id
           ? {
               ...card,
@@ -270,40 +304,128 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
             }
           : card
       )
-    )
+      console.log("Updated cards:", updated.map(card => ({
+        id: card.id,
+        status: card.status
+      })))
+      return updated
+    })
   }
 
   const completeOnboarding = async () => {
-    if (!user?.id) return
-
+    console.log("completeOnboarding started")
     try {
-      // Save to Firebase
-      if (db) {
-        const userRef = doc(db, "users", user.id)
-        await setDoc(userRef, {
-          onboarding: {
-            completed: true,
-            data,
-            generatedCards,
-            completedAt: new Date().toISOString(),
-          },
-        })
+      if (!user) {
+        console.log("No user found")
+        throw new Error("No user found")
       }
 
-      // Save to Supabase
-      const { error } = await supabase.from("user_profiles").upsert({
-        user_id: user.id,
-        onboarding_completed: true,
-        onboarding_data: data,
-        generated_cards: generatedCards,
-        completed_at: new Date().toISOString(),
-      })
+      // 수집된 카드와 거절된 카드 모두 필터링
+      const cardsToSave = generatedCards.filter(card => 
+        card.status === "collected" || card.status === "rejected"
+      )
+      console.log("Cards to save:", cardsToSave.length)
+      
+      if (cardsToSave.length === 0) {
+        throw new Error("No cards processed")
+      }
 
-      if (error) throw error
+      // 컨텍스트 데이터 저장
+      const { error: contextsError } = await supabase
+        .from('personal_contexts')
+        .insert(
+          data.context.contexts.map(context => ({
+            user_id: user.id,
+            content: context.content,
+            type: context.type,
+            source: 'onboarding'
+          }))
+        )
 
-      router.push("/dashboard")
+      if (contextsError) {
+        console.error("Error saving contexts:", contextsError)
+        throw new Error(`Failed to save contexts: ${contextsError.message}`)
+      }
+
+      // 모든 카드 저장 (collected와 rejected 모두)
+      const { error: cardsError } = await supabase
+        .from('self_aspect_cards')
+        .insert(
+          cardsToSave.map(card => ({
+            user_id: user.id,
+            title: card.title,
+            description: card.description,
+            traits: card.traits,
+            status: card.status,
+            created_at: card.created_at,
+            updated_at: card.updated_at
+          }))
+        )
+
+      if (cardsError) {
+        console.error("Error saving cards:", cardsError)
+        throw new Error(`Failed to save cards: ${cardsError.message}`)
+      }
+
+      // 기존 onboarding 데이터 확인
+      const { data: existingData, error: checkError } = await supabase
+        .from('onboarding_data')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error("Error checking existing data:", checkError)
+        throw new Error(`Failed to check existing data: ${checkError.message}`)
+      }
+
+      // onboarding_data 업데이트 또는 생성
+      const { error: onboardingError } = existingData
+        ? await supabase
+            .from('onboarding_data')
+            .update({ 
+              social_data: data.social,
+              personal_data: data.personal,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+        : await supabase
+            .from('onboarding_data')
+            .insert([{ 
+              user_id: user.id,
+              social_data: data.social,
+              personal_data: data.personal,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }])
+
+      if (onboardingError) {
+        console.error("Error saving onboarding data:", onboardingError)
+        throw new Error(`Failed to save onboarding data: ${onboardingError.message}`)
+      }
+
+      // Supabase에 온보딩 완료 상태 업데이트
+      const { error: userError } = await supabase
+        .from('users')
+        .update({ 
+          onboarding_completed: true,
+          onboarding_completed_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (userError) {
+        console.error("Error updating user:", userError)
+        throw new Error(`Failed to update user status: ${userError.message}`)
+      }
+
+      // auth context의 user 상태 업데이트
+      await updateOnboardingStatus(true)
+      
+      console.log("All operations completed successfully")
+      return true // 성공 여부를 반환
     } catch (error) {
-      console.error("Error completing onboarding:", error)
+      console.error("Error in completeOnboarding:", error)
+      throw error
     }
   }
 

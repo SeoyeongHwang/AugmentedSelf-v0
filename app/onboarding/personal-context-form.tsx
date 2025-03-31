@@ -80,27 +80,6 @@ export default function PersonalContextForm() {
           </div>
         </Card>
       ))}
-
-      <div className="flex justify-between pt-4">
-        <Button
-          variant="outline"
-          onClick={() => {
-            const { prevStep } = useOnboarding()
-            prevStep()
-          }}
-        >
-          Previous
-        </Button>
-        <Button
-          onClick={() => {
-            const { nextStep } = useOnboarding()
-            nextStep()
-          }}
-          disabled={!data.context.contexts.every((context) => context.content.trim() !== '')}
-        >
-          Next
-        </Button>
-      </div>
     </div>
   )
 }

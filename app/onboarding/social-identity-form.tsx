@@ -11,7 +11,10 @@ import { Separator } from "@/components/ui/separator"
 
 export default function SocialIdentityForm() {
   const { data, updateSocialIdentity } = useOnboarding()
-  const { social } = data
+  const social = data.social
+
+  // disabilities가 undefined일 경우를 대비한 기본값 설정
+  const disabilities = social.disabilities || { has: false, details: "" }
 
   return (
     <div className="space-y-6">
@@ -159,13 +162,13 @@ export default function SocialIdentityForm() {
             <div className="space-y-2">
               <Label>7. Do you have any disabilities or impairments?</Label>
               <RadioGroup
-                value={social.disabilities.has ? "yes" : "no"}
+                value={disabilities.has ? "yes" : "no"}
                 onValueChange={(value) =>
                   updateSocialIdentity({
                     disabilities: {
-                      ...social.disabilities,
                       has: value === "yes",
-                    },
+                      details: value === "no" ? "" : disabilities.details
+                    }
                   })
                 }
                 className="flex flex-col space-y-1"
@@ -184,17 +187,17 @@ export default function SocialIdentityForm() {
                 </div>
               </RadioGroup>
 
-              {social.disabilities.has && (
+              {disabilities.has && (
                 <div className="pt-2">
                   <Label htmlFor="disabilities-details">Please specify:</Label>
                   <Textarea
                     id="disabilities-details"
                     placeholder="Please describe your disability or impairment"
-                    value={social.disabilities.details}
+                    value={disabilities.details}
                     onChange={(e) =>
                       updateSocialIdentity({
                         disabilities: {
-                          ...social.disabilities,
+                          ...disabilities,
                           details: e.target.value,
                         },
                       })

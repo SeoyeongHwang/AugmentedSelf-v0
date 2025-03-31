@@ -21,6 +21,7 @@ type AuthContextType = {
   logout: () => Promise<void>
   clearError: () => void
   setError: (error: string | null) => void
+  updateOnboardingStatus: (completed: boolean) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -41,11 +42,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initialize = async () => {
       console.log('AuthProvider: initialize started')
       
-      if (initRef.current) {
-        console.log('AuthProvider: already initialized')
-        return
-      }
-      
       try {
         console.log('AuthProvider: checking Supabase session')
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -58,7 +54,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (mounted) {
           if (session?.user) {
-            // Fetch user data from users table
             const { data: userData, error: userError } = await supabase
               .from('users')
               .select('*')
@@ -72,40 +67,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser({
               id: session.user.id,
               email: session.user.email || '',
-              onboardingCompleted: userData?.onboarding_completed || false,
+              onboardingCompleted: userData?.onboarding_completed ?? false,
               cards: []
             })
-          } else {
-            setUser(null)
           }
-          setLoading(false)
           setInitialized(true)
           initRef.current = true
-          console.log('AuthProvider: initialization complete')
         }
       } catch (error) {
-        console.error('AuthProvider: initialization error:', error)
+        console.error('Error during initialization:', error)
         if (mounted) {
-          setUser(null)
-          setLoading(false)
           setInitialized(true)
           initRef.current = true
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false)
         }
       }
     }
 
-    initialize().catch(error => {
-      console.error('AuthProvider: unhandled initialization error:', error)
-      if (mounted) {
-        setUser(null)
-        setLoading(false)
-        setInitialized(true)
-        initRef.current = true
-      }
-    })
+    initialize()
 
     return () => {
-      console.log('AuthProvider: cleanup')
       mounted = false
     }
   }, [])
@@ -146,10 +130,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Error fetching user data:', userError)
         }
 
+        const onboardingCompleted = userData?.onboarding_completed
         setUser({
           id: data.user.id,
           email: data.user.email || '',
-          onboardingCompleted: userData?.onboarding_completed || false,
+          onboardingCompleted: onboardingCompleted === null ? false : onboardingCompleted,
           cards: []
         })
       }
@@ -177,6 +162,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updateOnboardingStatus = async (completed: boolean) => {
+    if (!user) return
+    
+    setUser(prev => prev ? {
+      ...prev,
+      onboardingCompleted: completed
+    } : null)
+  }
+
   console.log('AuthProvider: render', { user, loading, initialized, initRef: initRef.current })
 
   if (!initialized) {
@@ -187,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
   }
 
-  return <AuthContext.Provider value={{ user, loading, error, login, logout, clearError, setError }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, error, login, logout, clearError, setError, updateOnboardingStatus }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

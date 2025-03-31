@@ -18,6 +18,7 @@ import { motion } from "framer-motion"
 import type { SelfAspectCard } from "@/types/onboarding"
 import { supabase, type SelfAspectCardDB, checkSupabaseConnection } from "@/lib/supabase"
 import { SelfAspectCardComponent } from "@/components/self-aspect-card"
+import { useRouter } from "next/navigation"
 
 // Mock new self-aspect cards data for content analysis
 const mockNewCards: SelfAspectCard[] = [
@@ -56,8 +57,14 @@ export default function DashboardPage() {
   const [rejectedCards, setRejectedCards] = useState<SelfAspectCard[]>([])
   const [userData, setUserData] = useState<any>(null)
 
-  // Now it's safe to use the auth context
   const { user, logout } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (user && !user.onboardingCompleted) {
+      router.push('/onboarding')  // 온보딩이 완료되지 않았으면 온보딩 페이지로
+    }
+  }, [user, router])
 
   // Load cards and user data from Supabase on initial render
   useEffect(() => {

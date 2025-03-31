@@ -17,15 +17,14 @@ export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Only redirect if user is logged in and we're on the login page
-    if (!loading && user) {
-      if (user.onboardingCompleted) {
-        router.replace("/dashboard")
+    if (user) {
+      if (!user.onboardingCompleted) {
+        router.push('/onboarding')
       } else {
-        router.replace("/onboarding")
+        router.push('/dashboard')
       }
     }
-  }, [user, loading, router])
+  }, [user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

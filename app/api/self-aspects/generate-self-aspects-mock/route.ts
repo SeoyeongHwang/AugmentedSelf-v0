@@ -20,21 +20,27 @@ const mockCards: SelfAspectCard[] = [
     title: "Creative Problem Solver",
     description: "Demonstrates strong analytical thinking and innovative approaches to challenges.",
     traits: ["Analytical", "Innovative"],
-    status: "new"
+    status: "new",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   },
   {
     id: `mock-${Date.now()}-2`,
     title: "Empathetic Communicator",
     description: "Shows deep understanding of others' perspectives and effective communication skills.",
     traits: ["Empathetic", "Articulate"],
-    status: "new"
+    status: "new",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   },
   {
     id: `mock-${Date.now()}-3`,
     title: "Growth-Oriented Learner",
     description: "Consistently seeks opportunities for personal and professional development.",
     traits: ["Curious", "Determined"],
-    status: "new"
+    status: "new",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   }
 ]
 
