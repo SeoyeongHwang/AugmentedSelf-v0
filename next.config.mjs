@@ -21,6 +21,17 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  webpack: (config, { dev, isServer }) => {
+    // Optimize development server performance
+    if (dev) {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+        ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+      }
+    }
+    return config
+  },
 }
 
 mergeConfig(nextConfig, userConfig)

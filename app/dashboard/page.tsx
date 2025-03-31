@@ -13,10 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { ThumbsUp, ThumbsDown, Upload, PenLine, LogOut, Loader2 } from "lucide-react"
+import { ThumbsUp, ThumbsDown, NotebookPen, Upload, Shapes, LogOut, Loader2 } from "lucide-react"
 import { motion } from "framer-motion"
 import type { SelfAspectCard } from "@/types/onboarding"
 import { supabase, type SelfAspectCardDB, checkSupabaseConnection } from "@/lib/supabase"
+import { SelfAspectCardComponent } from "@/components/self-aspect-card"
 
 // Mock new self-aspect cards data for content analysis
 const mockNewCards: SelfAspectCard[] = [
@@ -27,6 +28,8 @@ const mockNewCards: SelfAspectCard[] = [
       "You have a natural ability to understand others' emotions and perspectives. People often come to you for advice and support because you truly listen and care about their experiences.",
     traits: ["Agreeableness", "Low Neuroticism"],
     status: "new",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   },
   {
     id: "card-5",
@@ -35,6 +38,8 @@ const mockNewCards: SelfAspectCard[] = [
       "You excel at finding practical solutions to everyday challenges. You're resourceful and adaptable when facing obstacles, focusing on what works rather than getting caught up in theoretical possibilities.",
     traits: ["Conscientiousness", "Low Neuroticism"],
     status: "new",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   },
 ]
 
@@ -388,10 +393,10 @@ export default function DashboardPage() {
 
       // Update local state
       if (status === "collected") {
-        setCollectedCards((prev) => [...prev, { ...card, status }])
+        setCollectedCards((prev) => [...prev, { ...card, status, updated_at: new Date().toISOString() }])
         setRejectedCards((prev) => prev.filter((c) => c.id !== card.id))
       } else {
-        setRejectedCards((prev) => [...prev, { ...card, status }])
+        setRejectedCards((prev) => [...prev, { ...card, status, updated_at: new Date().toISOString() }])
         setCollectedCards((prev) => prev.filter((c) => c.id !== card.id))
       }
 
@@ -403,75 +408,6 @@ export default function DashboardPage() {
       console.error('Error updating card:', error)
     }
   }
-
-  const renderCard = (card: SelfAspectCard) => (
-    <motion.div
-      key={card.id}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Card className="h-full flex flex-col">
-        <CardHeader>
-          <CardTitle>{card.title}</CardTitle>
-          <div className="flex flex-wrap gap-1 mt-2">
-            {card.traits.map((trait) => (
-              <span
-                key={trait}
-                className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
-              >
-                {trait}
-              </span>
-            ))}
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1">
-          <p className="text-sm text-muted-foreground">{card.description}</p>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          {card.status === "collected" ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleCardReaction(card, "rejected")}
-            >
-              <ThumbsDown className="mr-2 h-4 w-4" />
-              Reject
-            </Button>
-          ) : card.status === "rejected" ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleCardReaction(card, "collected")}
-            >
-              <ThumbsUp className="mr-2 h-4 w-4" />
-              Collect
-            </Button>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleCardReaction(card, "collected")}
-              >
-                <ThumbsUp className="mr-2 h-4 w-4" />
-                Collect
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleCardReaction(card, "rejected")}
-                className="ml-2"
-              >
-                <ThumbsDown className="mr-2 h-4 w-4" />
-                Reject
-              </Button>
-            </>
-          )}
-        </CardFooter>
-      </Card>
-    </motion.div>
-  )
 
   return (
     <div className="min-h-screen bg-background">
@@ -510,11 +446,20 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                     {newCards.length > 0 ? (
-                      <div className="grid gap-6 md:grid-cols-2">
+                      <div className="grid grid-cols-[repeat(auto-fit,_minmax(338px,_1fr))] gap-4">
                         {newCards.map((card) => (
-                          <div key={card.id}>
-                            {renderCard(card)}
-                          </div>
+                          <motion.div
+                            key={card.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <SelfAspectCardComponent
+                              card={card}
+                              onCollect={() => handleCardReaction(card, "collected")}
+                              onReject={() => handleCardReaction(card, "rejected")}
+                            />
+                          </motion.div>
                         ))}
                       </div>
                     ) : (
@@ -533,12 +478,14 @@ export default function DashboardPage() {
             ) : (
               <Card>
                 <CardHeader>
-                  <CardTitle>Create New Entry</CardTitle>
+                  <CardTitle>✒️ Create New Entry</CardTitle>
                   <CardDescription>Write a new personal entry or upload a document</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="entry">Personal Entry</Label>
+                    <Label htmlFor="entry">
+                      Personal Entry
+                    </Label>
                     <Textarea
                       id="entry"
                       placeholder="Write about your thoughts, experiences, or reflections..."
@@ -574,7 +521,7 @@ export default function DashboardPage() {
                     </Button>
                   ) : (
                     <Button onClick={handleSubmitEntry} disabled={!newEntry.trim()}>
-                      <PenLine className="mr-2 h-4 w-4" />
+                      <NotebookPen className="mr-2 h-4 w-4" />
                       Submit Entry
                     </Button>
                   )}
@@ -583,15 +530,24 @@ export default function DashboardPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="collected" className="space-y-8">
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Collected Self-Aspects</h2>
+          <TabsContent value="collected" className="space-y-16">
+            <div className="space-y-8 mt-8">
+              <h2 className="text-xl font-semibold">🧩 Collected Self-Aspects</h2>
               {collectedCards.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-3">
                   {collectedCards.map((card) => (
-                    <div key={card.id}>
-                      {renderCard(card)}
-                    </div>
+                    <motion.div
+                      key={card.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <SelfAspectCardComponent
+                        card={card}
+                        onCollect={() => handleCardReaction(card, "collected")}
+                        onReject={() => handleCardReaction(card, "rejected")}
+                      />
+                    </motion.div>
                   ))}
                 </div>
               ) : (
@@ -603,14 +559,23 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Rejected Self-Aspects</h2>
+            <div className="space-y-8">
+              <h2 className="text-xl font-semibold">🗑️ Rejected Self-Aspects</h2>
               {rejectedCards.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-3">
                   {rejectedCards.map((card) => (
-                    <div key={card.id}>
-                      {renderCard(card)}
-                    </div>
+                    <motion.div
+                      key={card.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <SelfAspectCardComponent
+                        card={card}
+                        onCollect={() => handleCardReaction(card, "collected")}
+                        onReject={() => handleCardReaction(card, "rejected")}
+                      />
+                    </motion.div>
                   ))}
                 </div>
               ) : (

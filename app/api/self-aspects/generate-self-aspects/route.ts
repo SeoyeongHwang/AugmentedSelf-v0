@@ -5,96 +5,69 @@ import { type NextRequest, NextResponse } from "next/server"
 import type { OnboardingData, SelfAspectCard, PersonalityItem, ValueItem } from "@/types/onboarding"
 import OpenAI from "openai"
 import { SYSTEM_PROMPT, constructSelfAspectPrompt } from '@/src/lib/prompts/self-aspects'
+import { AI_MODELS, MODEL_CONFIGS } from '@/src/lib/constants/ai-models'
 
 // Mark this file as a server component
 export const runtime = "nodejs" // This ensures it runs on the server
 
-// Initialize the OpenAI client with better error handling
-const getOpenAIClient = () => {
-  const apiKey = process.env.OPENAI_API_KEY
-
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY environment variable is not set")
-  }
-
-  return new OpenAI({
-    apiKey,
-  })
-}
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
 
 export async function POST(request: NextRequest) {
   try {
-    // Log that we're starting the API call
     console.log("Starting generate-self-aspects API call")
+    const { data } = await request.json()
+    console.log("Received data:", JSON.stringify(data, null, 2))
 
-    // Parse the request body
-    const data: OnboardingData = await request.json()
-    console.log("Received data:", JSON.stringify(data, null, 2).substring(0, 200) + "...")
+    if (!data) {
+      console.error("No data provided")
+      return NextResponse.json(
+        { error: "Data is required" },
+        { status: 400 }
+      )
+    }
 
-    // Convert personality scores to natural language descriptions
-    const personalityDescriptions = generatePersonalityDescriptions(data.personal.personalityItems)
-    const valueDescriptions = generateValueDescriptions(data.personal.valueItems)
-
-    // Construct the prompt for GPT
+    // Construct the prompt
     const prompt = constructSelfAspectPrompt(data, 'onboarding')
     console.log("Constructed prompt length:", prompt.length)
 
-    try {
-      // Initialize OpenAI client
-      const openai = getOpenAIClient()
+    // Get model configuration
+    const model = AI_MODELS.DEFAULT.SELF_ASPECTS
+    const config = MODEL_CONFIGS[model]
 
-      // Call the OpenAI API with a timeout
-      console.log("Calling OpenAI API...")
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: SYSTEM_PROMPT,
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
-      })
-
-      console.log("OpenAI API response received")
-
-      // Parse the response
-      const responseText = completion.choices[0].message.content || ""
-      console.log("Response text:", responseText.substring(0, 200) + "...")
-
-      const cards = parseGPTResponse(responseText)
-      console.log("Parsed cards:", JSON.stringify(cards, null, 2))
-
-      return NextResponse.json({ cards })
-    } catch (openaiError: any) {
-      console.error("OpenAI API error:", openaiError)
-
-      // Return a more specific error for OpenAI issues
-      return NextResponse.json(
+    console.log("Calling OpenAI API...")
+    const response = await openai.chat.completions.create({
+      model,
+      messages: [
         {
-          error: "OpenAI API error",
-          message: openaiError.message || "Unknown OpenAI error",
-          code: openaiError.code || "unknown",
+          role: "system",
+          content: SYSTEM_PROMPT,
         },
-        { status: 502 }, // Using 502 Bad Gateway for upstream service errors
-      )
-    }
-  } catch (error: any) {
-    console.error("Error in generate-self-aspects API route:", error)
+        {
+          role: "user",
+          content: prompt,
+        }
+      ],
+      temperature: config.temperature,
+      max_tokens: config.maxTokens
+    })
 
-    // Return a detailed error response
+    console.log("OpenAI API response received")
+    const aiResponse = response.choices[0].message.content || ""
+    console.log("Raw AI response:", aiResponse)
+    
+    const parsedResponse = parseResponse(aiResponse)
+    console.log("Parsed response:", JSON.stringify(parsedResponse, null, 2))
+
+    return NextResponse.json(parsedResponse)
+  } catch (error) {
+    console.error("OpenAI API error:", error)
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace")
     return NextResponse.json(
-      {
-        error: "Failed to generate self-aspects",
-        message: error.message || "Unknown error",
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-      },
-      { status: 500 },
+      { error: "Failed to generate self-aspects" },
+      { status: 500 }
     )
   }
 }
@@ -385,5 +358,38 @@ function getEverydayValueDescription(value: string, score: number) {
   }
 
   return "No description available."
+}
+
+// Helper function to parse the response
+function parseResponse(responseText: string) {
+  try {
+    // Remove markdown code block markers and find JSON content
+    const jsonMatch = responseText.match(/```(?:json)?\s*({[\s\S]*?})\s*```/) || 
+                     responseText.match(/({[\s\S]*})/)
+    
+    if (!jsonMatch) {
+      throw new Error("No valid JSON found in response")
+    }
+
+    const jsonStr = jsonMatch[1]
+    const parsed = JSON.parse(jsonStr)
+
+    // Validate the response structure
+    if (!parsed.cards || !Array.isArray(parsed.cards)) {
+      throw new Error("Invalid response structure: missing or invalid cards array")
+    }
+
+    // Add IDs and status to each card
+    const cards = parsed.cards.map((card: any, index: number) => ({
+      ...card,
+      id: `card-${Date.now()}-${index}`,
+      status: "new" as const
+    }))
+
+    return { cards }
+  } catch (error) {
+    console.error("Error parsing response:", error)
+    throw new Error("Failed to parse AI response")
+  }
 }
 

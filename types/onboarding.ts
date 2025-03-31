@@ -58,6 +58,8 @@ export type SelfAspectCard = {
   description: string
   traits: string[]
   status: "new" | "collected" | "rejected"
+  created_at: string
+  updated_at: string
 }
 
 export type OnboardingData = {

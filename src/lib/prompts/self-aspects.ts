@@ -3,7 +3,7 @@ import type { PersonalityItem, ValueItem } from './types'
 // 이 파일은 자기 측면 생성에 필요한 프롬프트 관련 상수와 헬퍼 함수를 정의합니다.
 // OpenAI API에 전달할 시스템 프롬프트와 사회적 정체성을 포맷하는 함수를 포함합니다.
 export const SYSTEM_PROMPT = `You are an introspective identity analyst for this person.
-Based on the provided diary entries, personal context, and values (S, P, C), derive key self-aspects that this person might use to understand or describe themselves.
+Based on the provided social identity (S), personal identity (P), and personal context (C), derive key self-aspects that this person might use to understand or describe themselves.
 
 Each self-aspect should reflect a meaningful part of the person's identity, such as:
 - Core values or traits (e.g., "Driven by growth", "Values solitude")
@@ -19,9 +19,9 @@ The response must be in this exact JSON format:
 {
   "cards": [
     {
-      "title": "A short phrase that captures the self-aspect without any markdown or special characters",
+      "title": "A noun phrase that starts with 1-2 trait adjectives and ends with a role that captures this person's self-aspect",
       "description": "1-2 sentences explaining how this appears in the person's behavior, thinking, or emotional patterns",
-      "traits": ["Trait1", "Trait2", "Trait3"]
+      "traits": ["Trait1", "Trait2", ..., "TraitN"]
     }
   ]
 }
@@ -30,7 +30,7 @@ Important:
 1. Do not use any markdown formatting in the titles or descriptions
 2. Keep titles concise and clear
 3. Make descriptions natural and flowing
-4. Include exactly 2-3 traits per card
+4. Include exactly 1-3 traits per card
 5. Return ONLY the JSON object, no additional text`
 
 export function constructSelfAspectPrompt(
@@ -40,18 +40,18 @@ export function constructSelfAspectPrompt(
 ) {
   const basePrompt = `
     Social Identity (S):
-    ${formatSocialIdentity(data.social)}
+    ${formatSocialIdentity(data.social_data)}
     
     Personal Identity (P):
-    ${formatPersonalIdentity(data.personal)}
+    ${formatPersonalIdentity(data.personal_data)}
     
-    Values:
-    ${formatValues(data.personal)}
+    Personal Context (C):
+    ${formatValues(data.personal_data)}
   `
 
   if (type === 'onboarding') {
     return `
-      Based on the following information about a person, generate exactly 3 self-aspect cards that capture their multidimensional self-concept.
+      Based on the following information about a person, generate exactly 1-3 self-aspect cards that capture their multidimensional self-concept.
       
       ${basePrompt}
       
@@ -61,11 +61,11 @@ export function constructSelfAspectPrompt(
   }
 
   return `
-    Based on the following information and new journal entry, generate self-aspect cards that reflect new insights or developments in the user's self-concept.
+    Based on the following information and new journal entry, generate exactly 1-3self-aspect cards that reflect new insights or developments in the user's self-concept.
     
     ${basePrompt}
     
-    Journal Entry Content (C):
+    Personal Context (C):
     ${content}
   `
 }
@@ -88,23 +88,39 @@ function formatSocialIdentity(social: any) {
 }
 
 function formatPersonalIdentity(personal: any) {
+  const personalityItems = personal.personalityItems || []
+  
+  // Calculate average scores for each trait
+  const extraversionItems = personalityItems.filter((item: any) => item.id.startsWith('extraversion'))
+  const conscientiousnessItems = personalityItems.filter((item: any) => item.id.startsWith('conscientiousness'))
+  const neuroticismItems = personalityItems.filter((item: any) => item.id.startsWith('neuroticism'))
+  const opennessItems = personalityItems.filter((item: any) => item.id.startsWith('openness'))
+
+  const calculateAverage = (items: any[]) => {
+    if (items.length === 0) return 4
+    const sum = items.reduce((acc, item) => {
+      const score = item.isReverseCoded ? 8 - item.score : item.score
+      return acc + score
+    }, 0)
+    return sum / items.length
+  }
+
   return `
     Personality Traits:
-    - Extraversion: ${getPersonalityDescription("extraversion", personal.extraversionScore || 4)}
-    - Conscientiousness: ${getPersonalityDescription("conscientiousness", personal.conscientiousnessScore || 4)}
-    - Emotional Stability: ${getPersonalityDescription("emotional-stability", personal.neuroticismScore ? 8 - personal.neuroticismScore : 4)}
-    - Openness: ${getPersonalityDescription("openness", personal.opennessScore || 4)}
+    - Extraversion: ${getPersonalityDescription("extraversion", calculateAverage(extraversionItems))}
+    - Conscientiousness: ${getPersonalityDescription("conscientiousness", calculateAverage(conscientiousnessItems))}
+    - Emotional Stability: ${getPersonalityDescription("emotional-stability", calculateAverage(neuroticismItems))}
+    - Openness: ${getPersonalityDescription("openness", calculateAverage(opennessItems))}
   `
 }
 
 function formatValues(personal: any) {
-  return `
-    - Autonomy: ${getValueDescription("autonomy", personal.autonomyScore || 4)}
-    - Benevolence: ${getValueDescription("benevolence", personal.benevolenceScore || 4)}
-    - Achievement: ${getValueDescription("achievement", personal.achievementScore || 4)}
-    - Security: ${getValueDescription("security", personal.securityScore || 4)}
-    - Conformity: ${getValueDescription("conformity", personal.conformityScore || 4)}
-  `
+  const valueItems = personal.valueItems || []
+  
+  return valueItems.map((item: any) => {
+    const description = getValueDescription(item.id, item.score)
+    return `- ${item.id.charAt(0).toUpperCase() + item.id.slice(1)}: ${description}`
+  }).join('\n')
 }
 
 function getPersonalityDescription(trait: string, score: number): string {

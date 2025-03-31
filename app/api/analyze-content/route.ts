@@ -5,6 +5,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import type { SelfAspectCard } from "@/types/onboarding"
 import OpenAI from "openai"
 import { SYSTEM_PROMPT, constructSelfAspectPrompt } from '@/src/lib/prompts/self-aspects'
+import { AI_MODELS, MODEL_CONFIGS } from '@/src/lib/constants/ai-models'
 
 export const runtime = "nodejs"
 
@@ -21,14 +22,18 @@ const mockNewCards: { cards: SelfAspectCard[] } = {
       title: "Personal Growth Journey",
       description: "Reflecting on personal development and self-discovery through daily experiences.",
       traits: ["Growth", "Self-awareness"],
-      status: "new"
+      status: "new",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
     {
       id: `mock-${Date.now()}-2`,
       title: "Emotional Expression",
       description: "Exploring and expressing emotions through writing and reflection.",
       traits: ["Emotional intelligence", "Self-expression"],
-      status: "new"
+      status: "new",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
   ]
 }
@@ -48,21 +53,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate personality and value descriptions from user data
-    const personalityDescriptions = generatePersonalityDescriptions(userData)
-    const valueDescriptions = generateValueDescriptions(userData)
-    console.log("Generated descriptions:", {
-      personality: personalityDescriptions,
-      values: valueDescriptions
-    })
-
     // Construct the prompt
     const prompt = constructSelfAspectPrompt(userData, 'journal', content)
     console.log("Constructed prompt length:", prompt.length)
 
-    console.log("Calling OpenAI API via AI SDK...")
+    // Get model configuration
+    const model = AI_MODELS.DEFAULT.CONTENT_ANALYSIS
+    const config = MODEL_CONFIGS[model]
+
+    console.log("Calling OpenAI API...")
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model,
       messages: [
         {
           role: "system",
@@ -73,11 +74,11 @@ export async function POST(request: NextRequest) {
           content: prompt,
         }
       ],
-      temperature: 0.7,
-      max_tokens: 1000
+      temperature: config.temperature,
+      max_tokens: config.maxTokens
     })
 
-    console.log("AI SDK response received")
+    console.log("OpenAI API response received")
     const aiResponse = response.choices[0].message.content || ""
     console.log("Raw AI response:", aiResponse)
     
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(parsedResponse)
   } catch (error) {
-    console.error("AI SDK error:", error)
+    console.error("OpenAI API error:", error)
     console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace")
     return NextResponse.json(mockNewCards)
   }
@@ -100,46 +101,28 @@ function parseResponse(responseText: string) {
                      responseText.match(/({[\s\S]*})/)
     
     if (!jsonMatch) {
-      console.error('No JSON content found in response')
-      throw new Error('Invalid response format')
+      throw new Error("No valid JSON found in response")
     }
 
-    const jsonContent = jsonMatch[1].trim()
-    console.log('Parsed JSON content:', jsonContent)
-    
-    // Try to parse the JSON content
-    const response = JSON.parse(jsonContent)
+    const jsonStr = jsonMatch[1]
+    const parsed = JSON.parse(jsonStr)
 
-    if (!response.cards || !Array.isArray(response.cards)) {
-      console.error('Invalid response structure:', response)
-      throw new Error('Invalid response format')
+    // Validate the response structure
+    if (!parsed.cards || !Array.isArray(parsed.cards)) {
+      throw new Error("Invalid response structure: missing or invalid cards array")
     }
 
-    return {
-      cards: response.cards.map((card: any, index: number) => ({
-        id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        title: card.title?.trim() || 'Untitled Aspect',
-        description: card.description?.trim() || 'No description available',
-        traits: Array.isArray(card.traits) 
-          ? card.traits.map((trait: string) => trait.trim())
-          : ['Unknown'],
-        status: "new" as const,
-      }))
-    }
+    // Add IDs and status to each card
+    const cards = parsed.cards.map((card: any, index: number) => ({
+      ...card,
+      id: `card-${Date.now()}-${index}`,
+      status: "new" as const
+    }))
+
+    return { cards }
   } catch (error) {
-    console.error('Error parsing response:', error)
-    console.error('Original response text:', responseText)
-    return {
-      cards: [
-        {
-          id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          title: "Error Processing Response",
-          description: "The system encountered an error while processing the analysis results. Please try again.",
-          traits: ["Error"],
-          status: "new" as const,
-        },
-      ]
-    }
+    console.error("Error parsing response:", error)
+    throw new Error("Failed to parse AI response")
   }
 }
 
