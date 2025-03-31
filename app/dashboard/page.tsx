@@ -112,38 +112,14 @@ export default function DashboardPage() {
         const { data: onboardingData, error: onboardingError } = await supabase
           .from('onboarding_data')
           .select('*')
-          .eq('user_id', user?.id)
+          .eq('user_id', user.id)
           .single()
 
         if (onboardingError) {
-          if (onboardingError.code === 'PGRST116') {
-            console.log('No onboarding data found, creating new entry')
-            const { data: newOnboardingData, error: createError } = await supabase
-              .from('onboarding_data')
-              .insert([
-                {
-                  user_id: user?.id,
-                  social_data: {},
-                  personal_data: {}
-                }
-              ])
-              .select()
-              .single()
-
-            if (createError) {
-              console.error('Error creating onboarding data:', createError)
-              throw new Error(`Failed to create onboarding data: ${createError.message || 'Unknown error'}`)
-            }
-
-            setUserData(newOnboardingData)
-          } else {
-            console.error('Error fetching onboarding data:', onboardingError)
-            throw new Error(`Failed to fetch onboarding data: ${onboardingError.message || 'Unknown error'}`)
-          }
-        } else if (onboardingData) {
-          console.log('Fetched onboarding data')
-          setUserData(onboardingData)
+          throw new Error(`Failed to fetch onboarding data: ${onboardingError.message}`);
         }
+
+        setUserData(onboardingData);
       } catch (error: any) {
         console.error('Error loading user data:', error)
         setError(error.message || 'Failed to load user data. Please check your connection and try again.')
@@ -195,31 +171,18 @@ export default function DashboardPage() {
   }
 
   const handleSubmitEntry = async () => {
-    if (!user?.id) return
-
-    setIsAnalyzing(true)
-    setShowResults(false)
+    if (!user?.id || !userData) return;
 
     try {
-      // Limit content length to 3000 characters
-      const maxContentLength = 3000;
-      const truncatedContent = newEntry.length > maxContentLength 
-        ? newEntry.substring(0, maxContentLength)
+      setIsAnalyzing(true);
+      setShowResults(false);
+      
+      // 3000자 제한 적용
+      const truncatedContent = newEntry.length > 3000 
+        ? newEntry.substring(0, 3000) 
         : newEntry;
 
-      // Get user's onboarding data from Supabase
-      const { data: onboardingData, error: onboardingError } = await supabase
-        .from('onboarding_data')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-
-      if (onboardingError) {
-        console.error("Error fetching onboarding data:", onboardingError)
-        throw new Error("Failed to fetch user data")
-      }
-
-      // Call the analyze-content API
+      console.log("Submitting entry for analysis...");
       const response = await fetch("/api/analyze-content", {
         method: "POST",
         headers: {
@@ -227,63 +190,50 @@ export default function DashboardPage() {
         },
         body: JSON.stringify({
           content: truncatedContent,
-          userData: onboardingData
+          userData: userData
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error("API error response:", errorData)
-        throw new Error(errorData.error || `Failed to analyze content: ${response.statusText}`)
+        throw new Error(`API error: ${response.statusText}`);
       }
 
-      const data = await response.json()
-      console.log("API response:", data)
-      
+      const data = await response.json();
+      console.log("Analysis response:", data);
+
       if (!data.cards || !Array.isArray(data.cards)) {
-        console.error("Invalid response format:", data)
-        throw new Error("Invalid response format from API")
+        throw new Error("Invalid response format from API");
       }
 
-      // Save new cards to Supabase
-      const cardsToInsert = data.cards.map((card: SelfAspectCard, index: number) => ({
+      // 새로운 카드에 ID와 상태 추가
+      const cardsWithIds = data.cards.map((card: any) => ({
         ...card,
-        id: crypto.randomUUID(),
-        user_id: user.id,
+        id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         status: "new",
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }))
+        updated_at: new Date().toISOString(),
+        user_id: user.id
+      }));
 
-      console.log("Attempting to insert cards:", cardsToInsert)
-
-      const { data: insertedCards, error: insertError } = await supabase
+      setNewCards(cardsWithIds);
+      setShowResults(true);
+      
+      // 분석 완료 후 Supabase에 카드 저장
+      const { error: saveError } = await supabase
         .from('self_aspect_cards')
-        .insert(cardsToInsert)
-        .select()
+        .insert(cardsWithIds);
 
-      if (insertError) {
-        console.error("Error inserting cards:", insertError)
-        console.error("Error details:", {
-          code: insertError.code,
-          message: insertError.message,
-          details: insertError.details,
-          hint: insertError.hint
-        })
-        throw new Error(`Failed to save cards: ${insertError.message || 'Unknown error'}`)
+      if (saveError) {
+        console.error("Error saving cards to database:", saveError);
       }
 
-      console.log("Successfully inserted cards:", insertedCards)
-      setNewCards(cardsToInsert)
-    } catch (error: any) {
-      console.error("Error analyzing content:", error)
-      setNewCards(mockNewCards)
+    } catch (error) {
+      console.error("Error analyzing entry:", error);
+      setError(error instanceof Error ? error.message : "Failed to analyze entry");
     } finally {
-      setIsAnalyzing(false)
-      setShowResults(true)
-      setNewEntry("")
+      setIsAnalyzing(false);
     }
-  }
+  };
 
   const handleUpload = async () => {
     setIsAnalyzing(true)
@@ -521,13 +471,21 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
-                  {file ? (
+                  {isAnalyzing ? (
+                    <Button disabled>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </Button>
+                  ) : file ? (
                     <Button onClick={handleUpload}>
                       <Upload className="mr-2 h-4 w-4" />
                       Upload
                     </Button>
                   ) : (
-                    <Button onClick={handleSubmitEntry} disabled={!newEntry.trim()}>
+                    <Button 
+                      onClick={handleSubmitEntry} 
+                      disabled={!newEntry.trim() || isAnalyzing}
+                    >
                       <NotebookPen className="mr-2 h-4 w-4" />
                       Submit Entry
                     </Button>

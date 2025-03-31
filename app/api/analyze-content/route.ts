@@ -40,20 +40,17 @@ const mockNewCards: { cards: SelfAspectCard[] } = {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Starting analyze-content API call")
+    console.log("Starting content analysis")
     const { content, userData } = await request.json()
-    console.log("Received content length:", content?.length)
-    console.log("User data:", JSON.stringify(userData, null, 2))
-
-    if (!content) {
-      console.error("No content provided")
+    
+    if (!content || !userData) {
       return NextResponse.json(
-        { error: "Content is required" },
+        { error: "Content and user data are required" },
         { status: 400 }
       )
     }
 
-    // Construct the prompt
+    // Construct the prompt using journal type
     const prompt = constructSelfAspectPrompt(userData, 'journal', content)
     console.log("Constructed prompt length:", prompt.length)
 
@@ -61,7 +58,7 @@ export async function POST(request: NextRequest) {
     const model = AI_MODELS.DEFAULT.CONTENT_ANALYSIS
     const config = MODEL_CONFIGS[model]
 
-    console.log("Calling OpenAI API...")
+    console.log("Using model:", model)
     const response = await openai.chat.completions.create({
       model,
       messages: [
@@ -81,15 +78,26 @@ export async function POST(request: NextRequest) {
     console.log("OpenAI API response received")
     const aiResponse = response.choices[0].message.content || ""
     console.log("Raw AI response:", aiResponse)
-    
-    const parsedResponse = parseResponse(aiResponse)
-    console.log("Parsed response:", JSON.stringify(parsedResponse, null, 2))
+
+    // Parse the response
+    let parsedResponse
+    try {
+      parsedResponse = JSON.parse(aiResponse)
+    } catch (error) {
+      console.error("Error parsing AI response:", error)
+      return NextResponse.json(
+        { error: "Failed to parse AI response" },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json(parsedResponse)
   } catch (error) {
-    console.error("OpenAI API error:", error)
-    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace")
-    return NextResponse.json(mockNewCards)
+    console.error("API error:", error)
+    return NextResponse.json(
+      { error: "Failed to analyze content" },
+      { status: 500 }
+    )
   }
 }
 
