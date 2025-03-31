@@ -40,28 +40,28 @@ export function constructSelfAspectPrompt(
 ) {
   const basePrompt = `
     Social Identity (S):
-    ${formatSocialIdentity(data.social_data)}
+    ${formatSocialIdentity(data.social)}
     
     Personal Identity (P):
-    ${formatPersonalIdentity(data.personal_data)}
+    ${formatPersonalIdentity(data.personal)}
     
     Personal Context (C):
-    ${formatValues(data.personal_data)}
+    ${formatValues(data.personal)}
   `
 
   if (type === 'onboarding') {
     return `
-      Based on the following information about a person, generate exactly 1-3 self-aspect cards that capture their multidimensional self-concept.
+      Based on the following information about a person, generate exactly 3 self-aspect cards that capture their multidimensional self-concept.
       
       ${basePrompt}
       
       Personal Context (C):
-      ${data.context?.diary || "No personal context provided"}
+      ${formatPersonalContexts(data.context)}
     `
   }
 
   return `
-    Based on the following information and new journal entry, generate exactly 1-3self-aspect cards that reflect new insights or developments in the user's self-concept.
+    Based on the following information and new journal entry, generate exactly 3 self-aspect cards that reflect new insights or developments in the user's self-concept.
     
     ${basePrompt}
     
@@ -151,6 +151,20 @@ function getValueDescription(value: string, score: number): string {
   if (score >= 5.5) return "Very important"
   if (score >= 4) return "Moderately important"
   return "Less important"
+}
+
+function formatPersonalContexts(context: any) {
+  if (!context?.contexts || !Array.isArray(context.contexts)) {
+    return "No personal contexts provided"
+  }
+
+  return context.contexts.map((ctx: any, index: number) => {
+    if (ctx.type === 'text') {
+      return `Context ${index + 1} (Text):\n${ctx.content || "No content provided"}`
+    } else {
+      return `Context ${index + 1} (File):\nFile uploaded: ${ctx.fileUrl || "No file provided"}`
+    }
+  }).join('\n\n')
 }
 
 // 나머지 포맷팅 함수들... 

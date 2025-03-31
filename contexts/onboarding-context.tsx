@@ -13,6 +13,8 @@ import type {
   PersonalContext,
   SelfAspectCard,
   OnboardingData,
+  PersonalContextUpdate,
+  ContextData,
 } from "@/types/onboarding"
 import { db } from "@/lib/firebase"
 import { doc, setDoc, getDoc } from "firebase/firestore"
@@ -26,7 +28,7 @@ type OnboardingContextType = {
   isGenerating: boolean
   updateSocialIdentity: (data: Partial<SocialIdentity>) => void
   updatePersonalIdentity: (data: Partial<PersonalIdentity>) => void
-  updatePersonalContext: (data: Partial<PersonalContext>) => void
+  updatePersonalContext: (contextId: string, data: PersonalContextUpdate) => void
   updatePersonalityItem: (id: string, score: number) => void
   updateValueItem: (id: string, score: number) => void
   nextStep: () => void
@@ -41,29 +43,13 @@ const defaultSocialIdentity: SocialIdentity = {
   biologicalSex: "",
   genderIdentity: "",
   sexualOrientation: "",
-  ethnicity: "",
-  race: "",
-  disabilities: {
-    has: false,
-    details: "",
-  },
-  nationality: "",
-  dualNationality: {
-    has: false,
-    details: "",
-  },
-  residence: "",
-  education: "",
+  relationshipStatus: "",
   occupation: "",
-  fieldOfStudy: "",
-  jobTitle: "",
-  perceivedIncome: "",
-  subjectiveIncome: "",
-  incomeSatisfaction: "",
-  socialClass: "",
-  livingArrangement: "",
-  politicalAffiliation: "",
-  religiousAffiliation: "",
+  educationLevel: "",
+  culturalBackground: "",
+  religiousBeliefs: "",
+  primaryLanguage: "",
+  location: "",
 }
 
 const defaultPersonalityItems = [
@@ -147,7 +133,11 @@ const defaultData: OnboardingData = {
     valueItems: defaultValueItems,
   },
   context: {
-    diary: "",
+    contexts: [
+      { id: '1', type: 'text', content: '' },
+      { id: '2', type: 'text', content: '' },
+      { id: '3', type: 'text', content: '' }
+    ]
   },
 }
 
@@ -201,12 +191,13 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }))
   }
 
-  const updatePersonalContext = (contextData: Partial<PersonalContext>) => {
+  const updatePersonalContext = (contextId: string, contextData: PersonalContextUpdate) => {
     setData((prev) => ({
       ...prev,
       context: {
-        ...prev.context,
-        ...contextData,
+        contexts: prev.context.contexts.map((context) =>
+          context.id === contextId ? { ...context, ...contextData } : context
+        ),
       },
     }))
   }
@@ -248,208 +239,71 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
         if (response.ok) {
           const result = await response.json()
-          if (result.cards) {
-            console.log("AI SDK API returned cards:", result.cards.length)
-            // Convert card IDs to UUIDs
-            const cardsWithUUIDs = result.cards.map((card: SelfAspectCard) => ({
+          const now = new Date().toISOString()
+          setGeneratedCards(
+            result.cards.map((card: any) => ({
               ...card,
-              id: crypto.randomUUID()
+              status: "new",
+              created_at: now,
+              updated_at: now
             }))
-            setGeneratedCards(cardsWithUUIDs)
-            setIsGenerating(false)
-            return
-          }
+          )
         }
-
-        console.log("AI SDK API failed, falling back to mock API")
       } catch (error) {
-        console.error("Error with AI SDK API:", error)
-        console.log("Falling back to mock API")
+        console.error("Error with AI SDK route:", error)
       }
-
-      // If AI SDK route fails, use the mock API
-      const mockResponse = await fetch("/api/generate-self-aspects-mock", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
-
-      const mockResult = await mockResponse.json()
-
-      if (mockResult.cards) {
-        console.log("Mock API returned cards:", mockResult.cards.length)
-        // Convert card IDs to UUIDs
-        const cardsWithUUIDs = mockResult.cards.map((card: SelfAspectCard) => ({
-          ...card,
-          id: crypto.randomUUID()
-        }))
-        setGeneratedCards(cardsWithUUIDs)
-      } else {
-        throw new Error("Mock API failed to return cards")
-      }
-    } catch (error: any) {
-      console.error("Error generating self-aspect cards:", error)
-
-      // Fallback to hardcoded mock data in case all APIs fail
-      const fallbackCards: SelfAspectCard[] = [
-        {
-          id: crypto.randomUUID(),
-          title: "Analytical Thinker",
-          description:
-            "You approach problems methodically and enjoy finding logical solutions. You value understanding the details and underlying principles of situations before making decisions.",
-          traits: ["Conscientiousness", "Openness"],
-          status: "new",
-        },
-        {
-          id: crypto.randomUUID(),
-          title: "Empathetic Listener",
-          description:
-            "You have a natural ability to understand others' emotions and perspectives. People often come to you for advice because you truly listen and care about their experiences.",
-          traits: ["Benevolence", "Emotional Stability"],
-          status: "new",
-        },
-        {
-          id: crypto.randomUUID(),
-          title: "Independent Explorer",
-          description:
-            "You value your autonomy and enjoy discovering new ideas and experiences. You prefer setting your own path rather than following conventional expectations.",
-          traits: ["Autonomy", "Openness"],
-          status: "new",
-        },
-      ]
-
-      setGeneratedCards(fallbackCards)
+    } catch (error) {
+      console.error("Error generating self aspect cards:", error)
     } finally {
       setIsGenerating(false)
     }
   }
 
   const updateCardStatus = async (id: string, status: "collected" | "rejected") => {
-    if (!user?.id) {
-      console.error('No user ID available')
-      return
-    }
-
-    setGeneratedCards((prev) => prev.map((card) => (card.id === id ? { ...card, status } : card)))
-
-    try {
-      // Find the card to update
-      const cardToUpdate = generatedCards.find(card => card.id === id)
-      if (!cardToUpdate) {
-        console.error('Card not found:', id)
-        return
-      }
-
-      console.log('Updating card in Supabase:', {
-        id,
-        user_id: user.id,
-        status,
-        title: cardToUpdate.title,
-        description: cardToUpdate.description,
-        traits: cardToUpdate.traits
-      })
-
-      // Update the card status in Supabase
-      const { error } = await supabase
-        .from('self_aspect_cards')
-        .upsert({
-          id,
-          user_id: user.id,
-          title: cardToUpdate.title,
-          description: cardToUpdate.description,
-          traits: cardToUpdate.traits,
-          status,
-          updated_at: new Date().toISOString()
-        })
-
-      if (error) {
-        console.error('Supabase error details:', error)
-        throw new Error(`Failed to update card: ${error.message}`)
-      }
-    } catch (error) {
-      console.error('Error updating card status:', error)
-      throw error
-    }
+    setGeneratedCards((prev) =>
+      prev.map((card) =>
+        card.id === id
+          ? {
+              ...card,
+              status,
+              updated_at: new Date().toISOString(),
+            }
+          : card
+      )
+    )
   }
 
   const completeOnboarding = async () => {
-    if (!user?.id) {
-      console.error('No user ID available')
-      return
-    }
+    if (!user?.id) return
 
     try {
-      console.log('Completing onboarding for user:', user.id)
-
-      // First, check if onboarding data exists
-      const { data: existingData, error: fetchError } = await supabase
-        .from('onboarding_data')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('Error fetching existing onboarding data:', fetchError)
-      }
-
-      // Store onboarding data in Supabase
-      const { error: onboardingError } = await supabase
-        .from('onboarding_data')
-        .upsert({
-          id: existingData?.id,
-          user_id: user.id,
-          social_data: data.social,
-          personal_data: data.personal,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
+      // Save to Firebase
+      if (db) {
+        const userRef = doc(db, "users", user.id)
+        await setDoc(userRef, {
+          onboarding: {
+            completed: true,
+            data,
+            generatedCards,
+            completedAt: new Date().toISOString(),
+          },
         })
-
-      if (onboardingError) {
-        console.error('Onboarding data error details:', onboardingError)
       }
 
-      // Store cards in Supabase
-      const cardsToInsert = generatedCards.map(card => ({
-        ...card,
+      // Save to Supabase
+      const { error } = await supabase.from("user_profiles").upsert({
         user_id: user.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }))
+        onboarding_completed: true,
+        onboarding_data: data,
+        generated_cards: generatedCards,
+        completed_at: new Date().toISOString(),
+      })
 
-      console.log('Inserting cards:', cardsToInsert.length)
+      if (error) throw error
 
-      const { error: cardsError } = await supabase
-        .from('self_aspect_cards')
-        .upsert(cardsToInsert)
-
-      if (cardsError) {
-        console.error('Cards error details:', cardsError)
-      }
-
-      // Update user's onboarding completion status
-      const { error: updateError } = await supabase
-        .from('users')
-        .upsert({
-          id: user.id,
-          onboarding_completed: true,
-          updated_at: new Date().toISOString()
-        })
-
-      if (updateError) {
-        console.error('Error updating user status:', updateError)
-      }
-
-      // Force a hard navigation to dashboard
-      console.log('Navigating to dashboard...')
-      window.location.href = '/dashboard'
+      router.push("/dashboard")
     } catch (error) {
       console.error("Error completing onboarding:", error)
-      // Force a hard navigation to dashboard even if there's an error
-      console.log('Navigating to dashboard despite error...')
-      window.location.href = '/dashboard'
     }
   }
 
@@ -462,9 +316,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         isGenerating,
         updateSocialIdentity,
         updatePersonalIdentity,
+        updatePersonalContext,
         updatePersonalityItem,
         updateValueItem,
-        updatePersonalContext,
         nextStep,
         prevStep,
         generateSelfAspectCards,
