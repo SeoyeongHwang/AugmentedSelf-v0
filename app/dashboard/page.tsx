@@ -19,6 +19,7 @@ import type { SelfAspectCard } from "@/types/onboarding"
 import { supabase, type SelfAspectCardDB, checkSupabaseConnection } from "@/lib/supabase"
 import { SelfAspectCardComponent } from "@/components/self-aspect-card"
 import { useRouter } from "next/navigation"
+import { TraitsAnalysis } from "@/components/traits-analysis"
 
 // Mock new self-aspect cards data for content analysis
 const mockNewCards: SelfAspectCard[] = [
@@ -377,9 +378,10 @@ export default function DashboardPage() {
 
       <main className="container mx-auto max-w-7xl py-6 space-y-6">
         <Tabs defaultValue="write" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="write">작성/업로드</TabsTrigger>
             <TabsTrigger value="collected">수집된 카드</TabsTrigger>
+            <TabsTrigger value="traits">특성 분석</TabsTrigger>
           </TabsList>
 
           <TabsContent value="write" className="space-y-6">
@@ -548,6 +550,10 @@ export default function DashboardPage() {
                 </Card>
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="traits" className="space-y-6">
+            <TraitsAnalysis cards={collectedCards} />
           </TabsContent>
         </Tabs>
       </main>
