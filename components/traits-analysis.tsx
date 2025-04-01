@@ -55,8 +55,8 @@ export function TraitsAnalysis({ cards }: TraitsAnalysisProps) {
       {
         label: '등장 빈도',
         data: Object.values(traitFrequencies),
-        backgroundColor: 'rgba(124, 58, 237, 0.5)',
-        borderColor: 'rgba(124, 58, 237, 1)',
+        backgroundColor: 'rgba(34, 197, 94, 0.5)',
+        borderColor: 'rgba(34, 197, 94, 1)',
         borderWidth: 1
       }
     ]
@@ -99,7 +99,7 @@ export function TraitsAnalysis({ cards }: TraitsAnalysisProps) {
                 <Card key={trait} className="p-4">
                   <div className="text-lg font-semibold">{trait}</div>
                   <div className="text-sm text-muted-foreground">
-                    {frequency}회 등장
+                    {String(frequency)}회 등장
                   </div>
                 </Card>
               ))}
